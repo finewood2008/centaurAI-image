@@ -1403,14 +1403,7 @@ export function showCodexCliPrompt(force = false, reason = '接口返回的提�
 function getFalRecoveryProfile(settings: AppSettings, task: TaskRecord) {
   const taskProfile = getTaskApiProfile(settings, task)
   if (taskProfile?.provider === 'fal') return taskProfile
-
-  const normalized = normalizeSettings(settings)
-  const active = getActiveApiProfile(normalized)
-  if (active.provider === 'fal') return active
-  return normalized.profiles.find((profile) =>
-    profile.provider === 'fal' &&
-    (profile.name === task.apiProfileName || profile.model === task.apiModel),
-  ) ?? normalized.profiles.find((profile) => profile.provider === 'fal') ?? null
+  return null
 }
 
 function getCustomRecoveryProfile(settings: AppSettings, task: TaskRecord) {
@@ -1418,43 +1411,18 @@ function getCustomRecoveryProfile(settings: AppSettings, task: TaskRecord) {
   if (!provider || provider === 'openai' || provider === 'fal') return null
   const taskProfile = getTaskApiProfile(settings, task)
   if (taskProfile?.provider === provider) return taskProfile
-
-  const normalized = normalizeSettings(settings)
-  const active = getActiveApiProfile(normalized)
-  if (active.provider === provider) return active
-  return normalized.profiles.find((profile) =>
-    profile.provider === provider &&
-    (profile.name === task.apiProfileName || profile.model === task.apiModel),
-  ) ?? normalized.profiles.find((profile) => profile.provider === provider) ?? null
+  return null
 }
 
 export function getTaskApiProfile(settings: AppSettings, task: TaskRecord): ApiProfile | null {
   const normalized = normalizeSettings(settings)
   const provider = task.apiProvider
 
-  if (task.apiProfileId) {
-    const byId = normalized.profiles.find((profile) => profile.id === task.apiProfileId)
-    if (byId && (!provider || byId.provider === provider)) return byId
-    return null
-  }
+  if (!task.apiProfileId) return null
 
-  if (!provider) return null
-
-
-  const candidates = normalized.profiles.filter((profile) => profile.provider === provider)
-  if (!candidates.length) return null
-
-  if (task.apiProfileName) {
-    const byName = candidates.find((profile) => profile.name === task.apiProfileName)
-    if (byName) return byName
-  }
-
-  if (task.apiModel) {
-    const modelMatches = candidates.filter((profile) => profile.model === task.apiModel)
-    if (modelMatches.length === 1) return modelMatches[0]
-  }
-
-  return candidates.length === 1 ? candidates[0] : null
+  const byId = normalized.profiles.find((profile) => profile.id === task.apiProfileId)
+  if (byId && (!provider || byId.provider === provider)) return byId
+  return null
 }
 
 function createSettingsForApiProfile(settings: AppSettings, profile: ApiProfile): AppSettings {
