@@ -116,8 +116,8 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 控制台日志 / 网络响应 / 截图
-      description: 如涉及跨域、长时间无响应或图片无法加载，请按 F12 打开控制台和网络面板，提供相关报错信息、请求响应体或截图。请勿粘贴密钥。
+      label: 错误信息 / 截图
+      description: 如果已确认问题属于本项目，请提供与本项目相关的控制台错误、页面截图或复现录屏。请勿粘贴密钥。
       render: shell
     validations:
       required: false
