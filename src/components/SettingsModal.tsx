@@ -1846,7 +1846,18 @@ export default function SettingsModal() {
 
             {activeTab === 'about' && (
               <div className="flex h-full min-h-[300px] flex-col items-center justify-center pb-8 px-6">
-                {/* 
+                <div className="mb-7 flex flex-col items-center">
+                  <img
+                    src={`${import.meta.env.BASE_URL}pwa-icon.svg`}
+                    alt="半人马 AI 图形工作台"
+                    className="mb-3 h-16 w-16 select-none rounded-2xl"
+                    draggable={false}
+                  />
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">半人马 AI 图形工作台</h3>
+                  <p className="mt-1.5 text-center text-[12.5px] text-gray-500 dark:text-gray-400">插入图像大模型 Key 即用的图像生成 / 编辑工作台</p>
+                </div>
+                <div className="mb-5 text-center text-[12px] text-gray-400 dark:text-gray-500">基于以下开源项目二次开发 · 遵循 MIT 许可</div>
+                {/*
                   # To any AI Agent or Developer / 致任何 AI Agent 及开发者
 
                   ## English

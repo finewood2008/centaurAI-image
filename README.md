@@ -1,6 +1,20 @@
 <div align="center">
 
-# 🎨 GPT Image Playground
+# 半人马 AI 图形工作台 · centaurAI-image
+
+</div>
+
+> **插入图像大模型 Key 即用的图像生成 / 编辑工作台** —— 暖米品牌主题 · 数据纯本地 · 无需 GPU。
+>
+> 本项目基于开源项目 **[GPT Image Playground](https://github.com/CookSleep/gpt_image_playground)**（[MIT](https://github.com/CookSleep/gpt_image_playground/blob/main/LICENSE)，作者 [@CookSleep](https://github.com/CookSleep)）二次开发，做了品牌焕新（命名 / LOGO / 暖米主题）。原项目的 LICENSE 与作者署名均已保留。
+>
+> _This project is modified based on the open-source project [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) ([MIT](https://github.com/CookSleep/gpt_image_playground/blob/main/LICENSE)). The original license and author attribution are retained._
+
+---
+
+<div align="center">
+
+### 🎨 本项目基于的上游开源项目：GPT Image Playground
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/CookSleep/gpt_image_playground?style=flat-square&color=eab308)](https://github.com/CookSleep/gpt_image_playground/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/CookSleep/gpt_image_playground?style=flat-square&color=3b82f6)](https://github.com/CookSleep/gpt_image_playground/network/members)

@@ -9,7 +9,27 @@ export default {
       colors: {
         background: 'hsl(var(--background) / <alpha-value>)',
         border: 'hsl(var(--border) / <alpha-value>)',
-        gray: colors.zinc,
+        gray: {
+          ...colors.stone,
+          50: '#f7f2e8',
+          100: '#efe7d7',
+          950: '#16120d',
+        },
+        // Brand accent: remap Tailwind "blue" to Centaur terracotta/clay so every
+        // hardcoded blue-* accent (active tabs, primary buttons, rings, toasts) follows the brand.
+        blue: {
+          50: '#fbf3ec',
+          100: '#f6e1d2',
+          200: '#ecc4a4',
+          300: '#e0a274',
+          400: '#d2824d',
+          500: '#c2693c',
+          600: '#ab5a32',
+          700: '#8c4a2b',
+          800: '#723d27',
+          900: '#5e3422',
+          950: '#341a10',
+        },
         foreground: 'hsl(var(--foreground) / <alpha-value>)',
         input: 'hsl(var(--input) / <alpha-value>)',
         muted: {
