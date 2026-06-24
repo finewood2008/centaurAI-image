@@ -29,6 +29,10 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build web bundle (SPA)
         run: npx vite build
+        env:
+          # Pre-provisioned default fal.ai engine key for LAN installers.
+          # Set the repo/Org secret VITE_DEFAULT_FAL_API_KEY; empty -> OpenAI default.
+          VITE_DEFAULT_FAL_API_KEY: ${{ secrets.VITE_DEFAULT_FAL_API_KEY }}
       - name: Package installer
         run: npx electron-builder ${{ matrix.flag }} --publish never
         env:

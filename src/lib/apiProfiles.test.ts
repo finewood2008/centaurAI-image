@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_FAL_BASE_URL,
   DEFAULT_FAL_MODEL,
+  DEFAULT_FAL_PROFILE_ID,
   DEFAULT_IMAGES_MODEL,
   DEFAULT_OPENAI_PROFILE_ID,
   DEFAULT_SETTINGS,
+  buildDefaultSettings,
   createDefaultOpenAIProfile,
   createDefaultFalProfile,
   getActiveApiProfile,
@@ -38,6 +40,44 @@ describe('validateApiProfile', () => {
       apiKey: 'test-key',
       apiProxy: true,
     }))).toBe('缺少 API URL')
+  })
+})
+
+describe('buildDefaultSettings', () => {
+  it('keeps the keyless OpenAI profile as the default when no fal key is provided', () => {
+    const settings = buildDefaultSettings('')
+    expect(settings.profiles).toHaveLength(1)
+    expect(settings.activeProfileId).toBe(DEFAULT_OPENAI_PROFILE_ID)
+    expect(settings.profiles[0]).toMatchObject({ provider: 'openai', apiKey: '' })
+  })
+
+  it('defaults to fal.ai with the pre-provisioned key when a fal key is provided', () => {
+    const key = '2a05b598-0000-0000-0000-000000000000:deadbeef'
+    const settings = buildDefaultSettings(key)
+    expect(settings.profiles).toHaveLength(1)
+    expect(settings.activeProfileId).toBe(DEFAULT_FAL_PROFILE_ID)
+    expect(settings.agentImageProfileId).toBe(DEFAULT_FAL_PROFILE_ID)
+    const active = getActiveApiProfile(settings)
+    expect(active).toMatchObject({
+      id: DEFAULT_FAL_PROFILE_ID,
+      provider: 'fal',
+      apiKey: key,
+      baseUrl: DEFAULT_FAL_BASE_URL,
+      model: DEFAULT_FAL_MODEL,
+    })
+    // Top-level mirror reflects the active fal engine.
+    expect(settings.apiKey).toBe(key)
+    expect(settings.baseUrl).toBe(DEFAULT_FAL_BASE_URL)
+  })
+
+  it('trims whitespace-only fal keys back to the OpenAI default', () => {
+    expect(buildDefaultSettings('   ').activeProfileId).toBe(DEFAULT_OPENAI_PROFILE_ID)
+  })
+
+  it('exported DEFAULT_SETTINGS stays the OpenAI default in keyless (test) builds', () => {
+    // Vitest runs in test mode and does not load .env.production.local, so the
+    // pre-provisioned fal key is absent here and the default stays OpenAI.
+    expect(DEFAULT_SETTINGS.activeProfileId).toBe(DEFAULT_OPENAI_PROFILE_ID)
   })
 })
 
@@ -616,7 +656,7 @@ describe('custom providers', () => {
       ],
     })
 
-    expect(settings.providerOrder).toEqual(['fal', 'openai', 'custom-alpha', 'custom-beta'])
+    expect(settings.providerOrder).toEqual(['fal', 'openai', 'google', 'custom-alpha', 'custom-beta'])
   })
 
   it('keeps active custom providers in Images API mode when legacy apiMode is responses', () => {
