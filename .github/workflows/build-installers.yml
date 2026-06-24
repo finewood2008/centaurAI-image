@@ -1,0 +1,45 @@
+name: Build installers
+
+# Builds standalone per-OS installers for the Centaur Image Studio desktop app
+# (the App Store distributable). Unsigned (internal LAN use). Trigger manually;
+# download the artifacts and drop them into the CentaurAI server's
+# AIONUI_APPSTORE_INSTALLER_DIR/centaur-image-workbench/ for LAN users.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/desktop-installers']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, flag: '--win' }
+          - { os: macos-latest, flag: '--mac' }
+          - { os: ubuntu-latest, flag: '--linux' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build web bundle (SPA)
+        run: npx vite build
+      - name: Package installer
+        run: npx electron-builder ${{ matrix.flag }} --publish never
+        env:
+          # Internal LAN v1 — ship unsigned (no Apple/Authenticode cert).
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          if-no-files-found: warn
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
