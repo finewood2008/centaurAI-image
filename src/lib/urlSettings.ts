@@ -12,9 +12,6 @@ import {
 } from './apiProfiles'
 
 const URL_SETTING_KEYS = ['settings', 'apiUrl', 'apiKey', 'codexCli', 'apiMode', 'model', 'profileName', 'streamImages', 'streamPartialImages']
-const EMBEDDED_TOKENCLUB_PROFILE_NAME = 'TokenClub Image2'
-const EMBEDDED_TOKENCLUB_BASE_URL = 'centaur-image-workbench://app/__tokenclub/v1'
-const EMBEDDED_TOKENCLUB_MODEL = 'gpt-image-2'
 
 function getProfileDedupKey(profile: Pick<AppSettings['profiles'][number], 'provider' | 'baseUrl' | 'apiKey' | 'model' | 'apiMode' | 'codexCli' | 'streamImages' | 'streamPartialImages'>) {
   return JSON.stringify([
@@ -69,66 +66,8 @@ function hasSameEmbeddedTokenClubImage2Profile(
   )
 }
 
-function isTokenClubImage2Profile(profile: AppSettings['profiles'][number]) {
-  return (
-    profile.provider === 'openai' &&
-    profile.model.trim() === EMBEDDED_TOKENCLUB_MODEL &&
-    profile.apiMode === 'images' &&
-    isTokenClubImage2Url(profile.baseUrl)
-  )
-}
-
-function isTokenClubOpenAIProfile(profile: AppSettings['profiles'][number]) {
-  return profile.provider === 'openai' && isTokenClubImage2Url(profile.baseUrl)
-}
-
 export function buildEmbeddedTokenClubImage2Settings(currentSettings: Partial<AppSettings> | unknown): Partial<AppSettings> {
-  const settings = normalizeSettings(currentSettings)
-  const existingProfileWithKey = settings.profiles.find((profile) =>
-    isTokenClubImage2Profile(profile) && profile.apiKey.trim(),
-  ) ?? settings.profiles.find((profile) => isTokenClubOpenAIProfile(profile) && profile.apiKey.trim())
-  const existingProfile = existingProfileWithKey ?? settings.profiles.find(isTokenClubImage2Profile)
-
-  if (existingProfile) {
-    return normalizeSettings({
-      ...settings,
-      profiles: settings.profiles.map((profile) =>
-        profile.id === existingProfile.id
-          ? {
-              ...profile,
-              name: EMBEDDED_TOKENCLUB_PROFILE_NAME,
-              baseUrl: EMBEDDED_TOKENCLUB_BASE_URL,
-              model: EMBEDDED_TOKENCLUB_MODEL,
-              apiMode: 'images',
-              codexCli: false,
-              apiProxy: false,
-              responseFormatB64Json: undefined,
-              streamImages: false,
-              streamPartialImages: 0,
-            }
-          : profile,
-      ),
-      activeProfileId: existingProfile.id,
-    })
-  }
-
-  const profile = createDefaultOpenAIProfile({
-    id: createUrlProfileId(new Set(settings.profiles.map((item) => item.id))),
-    name: EMBEDDED_TOKENCLUB_PROFILE_NAME,
-    baseUrl: EMBEDDED_TOKENCLUB_BASE_URL,
-    model: EMBEDDED_TOKENCLUB_MODEL,
-    apiMode: 'images',
-    codexCli: false,
-    apiProxy: false,
-    streamImages: false,
-    streamPartialImages: 0,
-  })
-
-  return normalizeSettings({
-    ...settings,
-    profiles: [...settings.profiles, profile],
-    activeProfileId: profile.id,
-  })
+  return normalizeSettings(currentSettings)
 }
 
 function pickUrlSettingsPayload(value: unknown): unknown | null {

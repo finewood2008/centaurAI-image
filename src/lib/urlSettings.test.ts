@@ -154,24 +154,16 @@ describe('URL settings params', () => {
     expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
   })
 
-  it('creates and activates an embedded TokenClub Image2 profile without URL params', () => {
+  it('does not create an embedded TokenClub Image2 profile without URL params', () => {
     const current = normalizeSettings(DEFAULT_SETTINGS)
     const next = normalizeSettings(buildEmbeddedTokenClubImage2Settings(current))
-    const activeProfile = next.profiles.find((profile) => profile.id === next.activeProfileId)
 
-    expect(next.profiles).toHaveLength(2)
-    expect(activeProfile).toMatchObject({
-      name: 'TokenClub Image2',
-      provider: 'openai',
-      baseUrl: 'centaur-image-workbench://app/__tokenclub/v1',
-      model: 'gpt-image-2',
-      apiMode: 'images',
-      streamImages: false,
-      streamPartialImages: 0,
-    })
+    expect(next.profiles).toHaveLength(current.profiles.length)
+    expect(next.activeProfileId).toBe(current.activeProfileId)
+    expect(next.profiles.some((profile) => profile.name === 'TokenClub Image2')).toBe(false)
   })
 
-  it('migrates an existing embedded TokenClub IP profile without URL params and preserves the API key', () => {
+  it('does not migrate an existing TokenClub IP profile without URL params', () => {
     const existingProfile = createDefaultOpenAIProfile({
       id: 'tokenclub-image2',
       name: 'TokenClub Image2',
@@ -191,12 +183,12 @@ describe('URL settings params', () => {
     const activeProfile = next.profiles.find((profile) => profile.id === existingProfile.id)
 
     expect(next.profiles).toHaveLength(2)
-    expect(next.activeProfileId).toBe(existingProfile.id)
-    expect(activeProfile?.baseUrl).toBe('centaur-image-workbench://app/__tokenclub/v1')
+    expect(next.activeProfileId).toBe(DEFAULT_SETTINGS.activeProfileId)
+    expect(activeProfile?.baseUrl).toBe('http://8.209.228.147:8080/v1')
     expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
   })
 
-  it('reuses a saved TokenClub API key even when the previous model was different', () => {
+  it('does not rewrite a saved TokenClub profile when no URL params are present', () => {
     const existingProfile = createDefaultOpenAIProfile({
       id: 'tokenclub-old-model',
       name: 'TokenClub Old',
@@ -214,10 +206,10 @@ describe('URL settings params', () => {
     const activeProfile = next.profiles.find((profile) => profile.id === existingProfile.id)
 
     expect(next.profiles).toHaveLength(2)
-    expect(next.activeProfileId).toBe(existingProfile.id)
-    expect(activeProfile?.name).toBe('TokenClub Image2')
-    expect(activeProfile?.baseUrl).toBe('centaur-image-workbench://app/__tokenclub/v1')
-    expect(activeProfile?.model).toBe('gpt-image-2')
+    expect(next.activeProfileId).toBe(DEFAULT_SETTINGS.activeProfileId)
+    expect(activeProfile?.name).toBe('TokenClub Old')
+    expect(activeProfile?.baseUrl).toBe('https://api.tokenclub.pro/v1')
+    expect(activeProfile?.model).toBe('gpt-image-1.5')
     expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
   })
 
