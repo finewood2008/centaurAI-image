@@ -10,15 +10,17 @@ import { installMobileViewportGuards } from './lib/viewport'
 installMobileViewportGuards()
 
 if ('serviceWorker' in navigator) {
-  if (import.meta.env.PROD) {
+  const serviceWorkerDisabled = new URLSearchParams(window.location.search).get('disableServiceWorker') === 'true'
+
+  if (serviceWorkerDisabled || !import.meta.env.PROD) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister())
+    })
+  } else {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((error) => {
         console.error('Service worker registration failed:', error)
       })
-    })
-  } else {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => registration.unregister())
     })
   }
 }

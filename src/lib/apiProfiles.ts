@@ -31,10 +31,23 @@ export const DEFAULT_IMAGES_MODEL = 'gpt-image-2'
 export const DEFAULT_RESPONSES_MODEL = 'gpt-5.5'
 export const DEFAULT_FAL_BASE_URL = 'https://fal.run'
 export const DEFAULT_FAL_MODEL = 'openai/gpt-image-2'
+export const DEFAULT_GOOGLE_BASE_URL = 'https://generativelanguage.googleapis.com'
+export const DEFAULT_GOOGLE_MODEL = 'gemini-2.5-flash-image'
+export const DEFAULT_GOOGLE_IMAGEN_MODEL = 'imagen-4.0-generate-001'
 export const DEFAULT_OPENAI_PROFILE_ID = 'default-openai'
+export const DEFAULT_FAL_PROFILE_ID = 'default-fal'
 export const DEFAULT_API_TIMEOUT = 600
 
-const BUILT_IN_PROVIDER_IDS = new Set<ApiProvider>(['openai', 'fal'])
+/**
+ * Build-time pre-provisioned default fal.ai API key (the LAN shared engine key).
+ * Injected via `VITE_DEFAULT_FAL_API_KEY` at build time so the secret never
+ * lives in source — the source repo is public and `dist/` is gitignored. When
+ * set, fresh installs default to fal.ai with this key as the active engine;
+ * when empty (generic builds, tests) the out-of-box default stays OpenAI.
+ */
+export const DEFAULT_FAL_API_KEY = readRuntimeEnv(import.meta.env.VITE_DEFAULT_FAL_API_KEY)
+
+const BUILT_IN_PROVIDER_IDS = new Set<ApiProvider>(['openai', 'fal', 'google'])
 const DEFAULT_CUSTOM_PROVIDER_PATHS = {
   generationPath: 'images/generations',
   editPath: 'images/edits',
@@ -97,7 +110,7 @@ function normalizeZipDownloadRoutes(value: unknown) {
 function normalizeProviderOrder(value: unknown, customProviders: CustomProviderDefinition[]): string[] | undefined {
   if (!Array.isArray(value)) return undefined
 
-  const providerIds = ['openai', 'fal', ...customProviders.map((provider) => provider.id)]
+  const providerIds = ['openai', 'fal', 'google', ...customProviders.map((provider) => provider.id)]
   const knownIds = new Set(providerIds)
   const ordered = value
     .map(String)
@@ -357,6 +370,24 @@ export function createDefaultFalProfile(overrides: Partial<ApiProfile> = {}): Ap
   }
 }
 
+export function createDefaultGoogleProfile(overrides: Partial<ApiProfile> = {}): ApiProfile {
+  return {
+    id: `google-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    name: '新配置',
+    provider: 'google',
+    baseUrl: DEFAULT_GOOGLE_BASE_URL,
+    apiKey: '',
+    model: DEFAULT_GOOGLE_MODEL,
+    timeout: DEFAULT_API_TIMEOUT,
+    apiMode: 'images',
+    codexCli: false,
+    apiProxy: false,
+    streamImages: false,
+    streamPartialImages: DEFAULT_STREAM_PARTIAL_IMAGES,
+    ...overrides,
+  }
+}
+
 export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvider, customProvider?: CustomProviderDefinition): ApiProfile {
   const providerDrafts = {
     ...profile.providerDrafts,
@@ -389,8 +420,24 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
     }
   }
 
+  if (provider === 'google') {
+    return {
+      ...profile,
+      provider,
+      baseUrl: savedDraft?.baseUrl ?? DEFAULT_GOOGLE_BASE_URL,
+      model: savedDraft?.model ?? DEFAULT_GOOGLE_MODEL,
+      apiMode: 'images',
+      codexCli: false,
+      apiProxy: false,
+      responseFormatB64Json: savedDraft?.responseFormatB64Json,
+      streamImages: false,
+      streamPartialImages: savedDraft?.streamPartialImages ?? DEFAULT_STREAM_PARTIAL_IMAGES,
+      providerDrafts,
+    }
+  }
+
   if (customProvider) {
-    const shouldUseOpenAIDefaults = profile.provider === 'fal'
+    const shouldUseOpenAIDefaults = profile.provider === 'fal' || profile.provider === 'google'
     return {
       ...profile,
       provider: customProvider.id,
@@ -431,17 +478,19 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
 
 function normalizeProviderDraft(input: unknown, provider: ApiProvider, customProviderIds: Set<string>): ApiProfileProviderDraft {
   if (!isRecord(input)) return undefined
-  const fallback = provider === 'fal' ? createDefaultFalProfile() : createDefaultOpenAIProfile()
+  const fallback = provider === 'fal' ? createDefaultFalProfile() : provider === 'google' ? createDefaultGoogleProfile() : createDefaultOpenAIProfile()
   const baseUrl = typeof input.baseUrl === 'string' ? input.baseUrl : undefined
   const model = typeof input.model === 'string' && input.model.trim() ? input.model : undefined
   const apiMode = input.apiMode === 'responses' ? 'responses' : input.apiMode === 'images' ? 'images' : undefined
-  const knownProvider = provider === 'fal' || provider === 'openai' || customProviderIds.has(provider)
+  const knownProvider = provider === 'fal' || provider === 'openai' || provider === 'google' || customProviderIds.has(provider)
   if (!knownProvider) return undefined
 
   return {
     baseUrl: provider === 'fal'
       ? baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_FAL_BASE_URL
-      : baseUrl,
+      : provider === 'google'
+        ? baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_GOOGLE_BASE_URL
+        : baseUrl,
     model,
     apiMode,
     codexCli: typeof input.codexCli === 'boolean' ? input.codexCli : fallback.codexCli,
@@ -464,11 +513,13 @@ function normalizeProviderDrafts(input: unknown, customProviderIds: Set<string>)
 export function normalizeApiProfile(input: unknown, fallback?: Partial<ApiProfile>, customProviderIds = new Set<string>()): ApiProfile {
   const record = input && typeof input === 'object' ? input as Record<string, unknown> : {}
   const rawProvider = typeof record.provider === 'string' ? record.provider : ''
-  const provider: ApiProvider = rawProvider === 'fal' || customProviderIds.has(rawProvider) ? rawProvider : 'openai'
+  const provider: ApiProvider = rawProvider === 'fal' || rawProvider === 'google' || customProviderIds.has(rawProvider) ? rawProvider : 'openai'
   const apiMode: ApiMode = provider === 'openai' && record.apiMode === 'responses' ? 'responses' : 'images'
   const defaults = provider === 'fal'
     ? createDefaultFalProfile(fallback)
-    : createDefaultOpenAIProfile({ ...fallback, apiMode })
+    : provider === 'google'
+      ? createDefaultGoogleProfile(fallback)
+      : createDefaultOpenAIProfile({ ...fallback, apiMode })
   const rawBaseUrl = typeof record.baseUrl === 'string' ? record.baseUrl : defaults.baseUrl
   const streamImages = provider === 'openai'
     ? typeof record.streamImages === 'boolean' ? record.streamImages : defaults.streamImages
@@ -479,7 +530,11 @@ export function normalizeApiProfile(input: unknown, fallback?: Partial<ApiProfil
     id: typeof record.id === 'string' && record.id.trim() ? record.id : defaults.id,
     name: typeof record.name === 'string' && record.name.trim() ? record.name : defaults.name,
     provider,
-    baseUrl: provider === 'fal' ? rawBaseUrl.trim().replace(/\/+$/, '') || DEFAULT_FAL_BASE_URL : rawBaseUrl,
+    baseUrl: provider === 'fal'
+      ? rawBaseUrl.trim().replace(/\/+$/, '') || DEFAULT_FAL_BASE_URL
+      : provider === 'google'
+        ? rawBaseUrl.trim().replace(/\/+$/, '') || DEFAULT_GOOGLE_BASE_URL
+        : rawBaseUrl,
     apiKey: typeof record.apiKey === 'string' ? record.apiKey : defaults.apiKey,
     model: typeof record.model === 'string' && record.model.trim() ? record.model : defaults.model,
     timeout: typeof record.timeout === 'number' && Number.isFinite(record.timeout) ? record.timeout : defaults.timeout,
@@ -591,6 +646,7 @@ export function getCustomProviderDefinition(settings: Partial<AppSettings> | unk
 
 export function getApiProviderLabel(settings: Partial<AppSettings> | unknown, provider: ApiProvider): string {
   if (provider === 'fal') return 'fal.ai'
+  if (provider === 'google') return 'Google (Gemini)'
   if (provider === 'openai') return 'OpenAI'
   return getCustomProviderDefinition(settings, provider)?.name ?? provider
 }
@@ -683,7 +739,7 @@ export function getActiveApiProfile(settings: Partial<AppSettings> | unknown): A
 
 export function validateApiProfile(profile: ApiProfile): string | null {
   if (!profile.name.trim()) return '缺少名称'
-  if (profile.provider !== 'fal' && !profile.baseUrl.trim() && !shouldUseApiProxy(profile.apiProxy)) return '缺少 API URL'
+  if (profile.provider !== 'fal' && profile.provider !== 'google' && !profile.baseUrl.trim() && !shouldUseApiProxy(profile.apiProxy)) return '缺少 API URL'
   if (!profile.apiKey.trim()) return '缺少 API Key'
   if (!profile.model.trim()) return '缺少模型 ID'
   return null
@@ -704,11 +760,27 @@ function isDefaultOpenAIProfile(profile: ApiProfile): boolean {
     profile.streamPartialImages === DEFAULT_STREAM_PARTIAL_IMAGES
 }
 
+function isDefaultFalProfile(profile: ApiProfile): boolean {
+  return Boolean(DEFAULT_FAL_API_KEY) &&
+    profile.id === DEFAULT_FAL_PROFILE_ID &&
+    profile.provider === 'fal' &&
+    profile.baseUrl === DEFAULT_FAL_BASE_URL &&
+    profile.apiKey === DEFAULT_FAL_API_KEY &&
+    profile.model === DEFAULT_FAL_MODEL &&
+    profile.timeout === DEFAULT_API_TIMEOUT &&
+    profile.apiMode === 'images' &&
+    profile.codexCli === false &&
+    profile.apiProxy === false &&
+    profile.streamImages === false &&
+    profile.streamPartialImages === DEFAULT_STREAM_PARTIAL_IMAGES
+}
+
 function hasOnlyDefaultProfiles(settings: AppSettings): boolean {
-  return settings.customProviders.length === 0 &&
-    settings.profiles.length === 1 &&
-    settings.activeProfileId === DEFAULT_OPENAI_PROFILE_ID &&
-    isDefaultOpenAIProfile(settings.profiles[0])
+  if (settings.customProviders.length !== 0 || settings.profiles.length !== 1) return false
+  const [only] = settings.profiles
+  if (settings.activeProfileId === DEFAULT_OPENAI_PROFILE_ID && isDefaultOpenAIProfile(only)) return true
+  if (settings.activeProfileId === DEFAULT_FAL_PROFILE_ID && isDefaultFalProfile(only)) return true
+  return false
 }
 
 function createImportedProfileId(provider: ApiProvider, usedIds: Set<string>): string {
@@ -848,31 +920,59 @@ export function mergeImportedSettings(currentSettings: Partial<AppSettings> | un
   })
 }
 
-export const DEFAULT_SETTINGS: AppSettings = normalizeSettings({
-  baseUrl: DEFAULT_BASE_URL,
-  apiKey: '',
-  model: DEFAULT_IMAGES_MODEL,
-  timeout: DEFAULT_API_TIMEOUT,
-  apiMode: 'images',
-  codexCli: false,
-  apiProxy: DEFAULT_OPENAI_API_PROXY,
-  streamImages: false,
-  streamPartialImages: DEFAULT_STREAM_PARTIAL_IMAGES,
-  customProviders: [],
-  clearInputAfterSubmit: false,
-  persistInputOnRestart: true,
-  reuseTaskApiProfileTemporarily: false,
-  alwaysShowRetryButton: false,
-  allowPromptRewrite: false,
-  taskCompletionNotification: false,
-  enterSubmit: false,
-  referenceImageEditAction: 'ask',
-  zipDownloadRoutes: DEFAULT_ZIP_DOWNLOAD_ROUTES,
-  agentScrollToBottomAfterSubmit: true,
-  agentMaxToolRounds: DEFAULT_AGENT_MAX_TOOL_ROUNDS,
-  agentWebSearch: false,
-  agentMathFormattingPrompt: true,
-  agentApiConfigMode: 'off',
-  agentTextProfileId: null,
-  agentImageProfileId: null,
-})
+/**
+ * Build the out-of-box settings for a fresh install (no persisted state).
+ *
+ * When `falApiKey` is non-empty (LAN production builds with
+ * `VITE_DEFAULT_FAL_API_KEY` set) the active/default image engine is fal.ai,
+ * pre-provisioned with the shared key so every fresh client works immediately.
+ * When empty (generic builds, tests) the default stays the keyless OpenAI
+ * profile, so existing behaviour and tests are unchanged.
+ */
+export function buildDefaultSettings(falApiKey: string = DEFAULT_FAL_API_KEY): AppSettings {
+  const base = {
+    baseUrl: DEFAULT_BASE_URL,
+    apiKey: '',
+    model: DEFAULT_IMAGES_MODEL,
+    timeout: DEFAULT_API_TIMEOUT,
+    apiMode: 'images',
+    codexCli: false,
+    apiProxy: DEFAULT_OPENAI_API_PROXY,
+    streamImages: false,
+    streamPartialImages: DEFAULT_STREAM_PARTIAL_IMAGES,
+    customProviders: [],
+    clearInputAfterSubmit: false,
+    persistInputOnRestart: true,
+    reuseTaskApiProfileTemporarily: false,
+    alwaysShowRetryButton: false,
+    allowPromptRewrite: false,
+    taskCompletionNotification: false,
+    enterSubmit: false,
+    referenceImageEditAction: 'ask',
+    zipDownloadRoutes: DEFAULT_ZIP_DOWNLOAD_ROUTES,
+    agentScrollToBottomAfterSubmit: true,
+    agentMaxToolRounds: DEFAULT_AGENT_MAX_TOOL_ROUNDS,
+    agentWebSearch: false,
+    agentMathFormattingPrompt: true,
+    agentApiConfigMode: 'off',
+    agentTextProfileId: null,
+    agentImageProfileId: null,
+  }
+
+  const key = falApiKey.trim()
+  if (!key) return normalizeSettings(base)
+
+  const falProfile = createDefaultFalProfile({
+    id: DEFAULT_FAL_PROFILE_ID,
+    name: '默认',
+    apiKey: key,
+  })
+  return normalizeSettings({
+    ...base,
+    profiles: [falProfile],
+    activeProfileId: DEFAULT_FAL_PROFILE_ID,
+    agentImageProfileId: DEFAULT_FAL_PROFILE_ID,
+  })
+}
+
+export const DEFAULT_SETTINGS: AppSettings = buildDefaultSettings()

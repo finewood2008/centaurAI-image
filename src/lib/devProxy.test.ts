@@ -36,4 +36,10 @@ describe('buildApiUrl', () => {
       'http://api.example.com/v1/responses',
     )
   })
+
+  it('keeps custom protocol origins when normalizing direct API URLs', () => {
+    expect(buildApiUrl('centaur-image-workbench://app/__tokenclub/v1', 'images/generations', null, false)).toBe(
+      'centaur-image-workbench://app/__tokenclub/v1/images/generations',
+    )
+  })
 })

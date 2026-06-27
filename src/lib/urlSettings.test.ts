@@ -6,7 +6,7 @@ import {
   DEFAULT_SETTINGS,
   normalizeSettings,
 } from './apiProfiles'
-import { buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './urlSettings'
+import { buildEmbeddedTokenClubImage2Settings, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './urlSettings'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -88,6 +88,137 @@ describe('URL settings params', () => {
 
     expect(next.profiles).toHaveLength(2)
     expect(next.activeProfileId).toBe(existingProfile.id)
+  })
+
+  it('reuses an existing profile with saved API key when embedded URL omits apiKey', () => {
+    const existingProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-image2',
+      name: 'TokenClub Image2',
+      baseUrl: 'https://api.tokenclub.pro/v1',
+      apiKey: 'saved-tokenclub-key',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+      streamImages: false,
+      streamPartialImages: 0,
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), existingProfile],
+      activeProfileId: DEFAULT_SETTINGS.activeProfileId,
+    })
+    const next = normalizeSettings({
+      ...current,
+      ...buildSettingsFromUrlParams(
+        current,
+        new URLSearchParams(
+          'profileName=TokenClub+Image2&apiUrl=https%3A%2F%2Fapi.tokenclub.pro%2Fv1&model=gpt-image-2&apiMode=images&streamImages=false&streamPartialImages=0',
+        ),
+      ),
+    })
+
+    expect(next.profiles).toHaveLength(2)
+    expect(next.activeProfileId).toBe(existingProfile.id)
+    expect(next.profiles.find((profile) => profile.id === existingProfile.id)?.apiKey).toBe('saved-tokenclub-key')
+  })
+
+  it('migrates saved TokenClub Image2 profiles to the embedded proxy URL without losing the API key', () => {
+    const existingProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-image2',
+      name: 'TokenClub Image2',
+      baseUrl: 'https://api.tokenclub.pro/v1',
+      apiKey: 'saved-tokenclub-key',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+      streamImages: false,
+      streamPartialImages: 0,
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), existingProfile],
+      activeProfileId: DEFAULT_SETTINGS.activeProfileId,
+    })
+    const next = normalizeSettings({
+      ...current,
+      ...buildSettingsFromUrlParams(
+        current,
+        new URLSearchParams(
+          'profileName=TokenClub+Image2&apiUrl=centaur-image-workbench%3A%2F%2Fapp%2F__tokenclub%2Fv1&model=gpt-image-2&apiMode=images&streamImages=false&streamPartialImages=0',
+        ),
+      ),
+    })
+
+    const activeProfile = next.profiles.find((profile) => profile.id === existingProfile.id)
+    expect(next.profiles).toHaveLength(2)
+    expect(next.activeProfileId).toBe(existingProfile.id)
+    expect(activeProfile?.baseUrl).toBe('centaur-image-workbench://app/__tokenclub/v1')
+    expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
+  })
+
+  it('creates and activates an embedded TokenClub Image2 profile without URL params', () => {
+    const current = normalizeSettings(DEFAULT_SETTINGS)
+    const next = normalizeSettings(buildEmbeddedTokenClubImage2Settings(current))
+    const activeProfile = next.profiles.find((profile) => profile.id === next.activeProfileId)
+
+    expect(next.profiles).toHaveLength(2)
+    expect(activeProfile).toMatchObject({
+      name: 'TokenClub Image2',
+      provider: 'openai',
+      baseUrl: 'centaur-image-workbench://app/__tokenclub/v1',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+      streamImages: false,
+      streamPartialImages: 0,
+    })
+  })
+
+  it('migrates an existing embedded TokenClub IP profile without URL params and preserves the API key', () => {
+    const existingProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-image2',
+      name: 'TokenClub Image2',
+      baseUrl: 'http://8.209.228.147:8080/v1',
+      apiKey: 'saved-tokenclub-key',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+      streamImages: false,
+      streamPartialImages: 0,
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), existingProfile],
+      activeProfileId: DEFAULT_SETTINGS.activeProfileId,
+    })
+    const next = normalizeSettings(buildEmbeddedTokenClubImage2Settings(current))
+    const activeProfile = next.profiles.find((profile) => profile.id === existingProfile.id)
+
+    expect(next.profiles).toHaveLength(2)
+    expect(next.activeProfileId).toBe(existingProfile.id)
+    expect(activeProfile?.baseUrl).toBe('centaur-image-workbench://app/__tokenclub/v1')
+    expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
+  })
+
+  it('reuses a saved TokenClub API key even when the previous model was different', () => {
+    const existingProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-old-model',
+      name: 'TokenClub Old',
+      baseUrl: 'https://api.tokenclub.pro/v1',
+      apiKey: 'saved-tokenclub-key',
+      model: 'gpt-image-1.5',
+      apiMode: 'images',
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), existingProfile],
+      activeProfileId: DEFAULT_SETTINGS.activeProfileId,
+    })
+    const next = normalizeSettings(buildEmbeddedTokenClubImage2Settings(current))
+    const activeProfile = next.profiles.find((profile) => profile.id === existingProfile.id)
+
+    expect(next.profiles).toHaveLength(2)
+    expect(next.activeProfileId).toBe(existingProfile.id)
+    expect(activeProfile?.name).toBe('TokenClub Image2')
+    expect(activeProfile?.baseUrl).toBe('centaur-image-workbench://app/__tokenclub/v1')
+    expect(activeProfile?.model).toBe('gpt-image-2')
+    expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
   })
 
   it('creates a separate profile when URL profile name differs', () => {

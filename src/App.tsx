@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { initStore } from './store'
 import { useStore } from './store'
-import { activateFirstImportedProfile, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './lib/urlSettings'
+import { activateFirstImportedProfile, buildEmbeddedTokenClubImage2Settings, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './lib/urlSettings'
 import { isDefaultConfigOnlyEnabled, mergeImportedSettings } from './lib/apiProfiles'
 import { getCustomProviderConfigUrl, loadCustomProviderSettingsFromUrl } from './lib/customProviderConfigUrl'
 import { useDockerApiUrlMigrationNotice } from './hooks/useDockerApiUrlMigrationNotice'
@@ -36,10 +36,12 @@ export default function App() {
     const searchParams = new URLSearchParams(window.location.search)
     const customProviderConfigUrl = getCustomProviderConfigUrl()
     const defaultConfigOnly = isDefaultConfigOnlyEnabled()
+    const embeddedInCentaur = window.location.protocol === 'centaur-image-workbench:'
 
     const applyUrlSettings = (baseSettings: Partial<AppSettings>) => {
       const nextSettings = buildSettingsFromUrlParams(baseSettings, searchParams)
-      return Object.keys(nextSettings).length ? nextSettings : baseSettings
+      const urlSettings = Object.keys(nextSettings).length ? nextSettings : baseSettings
+      return embeddedInCentaur ? buildEmbeddedTokenClubImage2Settings(urlSettings) : urlSettings
     }
 
     const clearAppliedUrlSettings = () => {

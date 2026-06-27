@@ -20,6 +20,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
 
   try {
     const url = new URL(input)
+    const origin = url.origin === 'null' && url.host ? `${url.protocol}//${url.host}` : url.origin
     const pathSegments = url.pathname.split('/').filter(Boolean)
     const v1Index = pathSegments.indexOf('v1')
     const normalizedSegments = v1Index >= 0
@@ -28,7 +29,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
         ? [...pathSegments, 'v1']
         : []
     const pathname = normalizedSegments.length ? `/${normalizedSegments.join('/')}` : ''
-    return `${url.origin}${pathname}`
+    return `${origin}${pathname}`
   } catch {
     return trimmed.replace(/\/+$/, '')
   }
