@@ -70,6 +70,31 @@ export function buildEmbeddedTokenClubImage2Settings(currentSettings: Partial<Ap
   return normalizeSettings(currentSettings)
 }
 
+function isEmptyEmbeddedTokenClubProfile(profile: AppSettings['profiles'][number]) {
+  return (
+    profile.provider === 'openai' &&
+    !profile.apiKey.trim() &&
+    (profile.name.trim() === 'TokenClub Image2' || isTokenClubImage2Url(profile.baseUrl))
+  )
+}
+
+export function removeEmptyEmbeddedTokenClubProfiles(currentSettings: Partial<AppSettings> | unknown): AppSettings {
+  const settings = normalizeSettings(currentSettings)
+  const profiles = settings.profiles.filter((profile) => !isEmptyEmbeddedTokenClubProfile(profile))
+  if (profiles.length === settings.profiles.length) return settings
+
+  const nextProfiles = profiles.length ? profiles : [createDefaultOpenAIProfile()]
+  const activeProfileId = nextProfiles.some((profile) => profile.id === settings.activeProfileId)
+    ? settings.activeProfileId
+    : nextProfiles[0].id
+
+  return normalizeSettings({
+    ...settings,
+    profiles: nextProfiles,
+    activeProfileId,
+  })
+}
+
 function pickUrlSettingsPayload(value: unknown): unknown | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const record = value as Record<string, unknown>

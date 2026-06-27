@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { initStore } from './store'
 import { useStore } from './store'
-import { activateFirstImportedProfile, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './lib/urlSettings'
+import { activateFirstImportedProfile, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams, removeEmptyEmbeddedTokenClubProfiles } from './lib/urlSettings'
 import { isDefaultConfigOnlyEnabled, mergeImportedSettings } from './lib/apiProfiles'
 import { getCustomProviderConfigUrl, loadCustomProviderSettingsFromUrl } from './lib/customProviderConfigUrl'
 import { useDockerApiUrlMigrationNotice } from './hooks/useDockerApiUrlMigrationNotice'
@@ -36,10 +36,14 @@ export default function App() {
     const searchParams = new URLSearchParams(window.location.search)
     const customProviderConfigUrl = getCustomProviderConfigUrl()
     const defaultConfigOnly = isDefaultConfigOnlyEnabled()
+    const embeddedInCentaur = window.location.protocol === 'centaur-image-workbench:'
+
+    const sanitizeEmbeddedSettings = (settings: Partial<AppSettings>) =>
+      embeddedInCentaur ? removeEmptyEmbeddedTokenClubProfiles(settings) : settings
 
     const applyUrlSettings = (baseSettings: Partial<AppSettings>) => {
       const nextSettings = buildSettingsFromUrlParams(baseSettings, searchParams)
-      return Object.keys(nextSettings).length ? nextSettings : baseSettings
+      return sanitizeEmbeddedSettings(Object.keys(nextSettings).length ? nextSettings : baseSettings)
     }
 
     const clearAppliedUrlSettings = () => {
@@ -74,9 +78,10 @@ export default function App() {
       return
     }
 
-    const nextSettings = buildSettingsFromUrlParams(useStore.getState().settings, searchParams)
+    const currentSettings = useStore.getState().settings
+    const nextSettings = buildSettingsFromUrlParams(currentSettings, searchParams)
 
-    setSettings(nextSettings)
+    setSettings(embeddedInCentaur ? sanitizeEmbeddedSettings(Object.keys(nextSettings).length ? nextSettings : currentSettings) : nextSettings)
 
     clearAppliedUrlSettings()
 

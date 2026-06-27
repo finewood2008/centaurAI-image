@@ -6,7 +6,7 @@ import {
   DEFAULT_SETTINGS,
   normalizeSettings,
 } from './apiProfiles'
-import { buildEmbeddedTokenClubImage2Settings, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './urlSettings'
+import { buildEmbeddedTokenClubImage2Settings, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams, removeEmptyEmbeddedTokenClubProfiles } from './urlSettings'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -211,6 +211,48 @@ describe('URL settings params', () => {
     expect(activeProfile?.baseUrl).toBe('https://api.tokenclub.pro/v1')
     expect(activeProfile?.model).toBe('gpt-image-1.5')
     expect(activeProfile?.apiKey).toBe('saved-tokenclub-key')
+  })
+
+  it('removes empty embedded TokenClub profiles left by older Centaur builds', () => {
+    const emptyTokenClubProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-image2',
+      name: 'TokenClub Image2',
+      baseUrl: 'centaur-image-workbench://app/__tokenclub/v1',
+      apiKey: '',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), emptyTokenClubProfile],
+      activeProfileId: emptyTokenClubProfile.id,
+    })
+    const next = removeEmptyEmbeddedTokenClubProfiles(current)
+
+    expect(next.profiles).toHaveLength(1)
+    expect(next.profiles.some((profile) => profile.id === emptyTokenClubProfile.id)).toBe(false)
+    expect(next.activeProfileId).toBe(DEFAULT_SETTINGS.activeProfileId)
+  })
+
+  it('preserves TokenClub profiles that contain a user API key', () => {
+    const userTokenClubProfile = createDefaultOpenAIProfile({
+      id: 'tokenclub-image2',
+      name: 'TokenClub Image2',
+      baseUrl: 'centaur-image-workbench://app/__tokenclub/v1',
+      apiKey: 'saved-tokenclub-key',
+      model: 'gpt-image-2',
+      apiMode: 'images',
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), userTokenClubProfile],
+      activeProfileId: userTokenClubProfile.id,
+    })
+    const next = removeEmptyEmbeddedTokenClubProfiles(current)
+
+    expect(next.profiles).toHaveLength(2)
+    expect(next.activeProfileId).toBe(userTokenClubProfile.id)
+    expect(next.profiles.find((profile) => profile.id === userTokenClubProfile.id)?.apiKey).toBe('saved-tokenclub-key')
   })
 
   it('creates a separate profile when URL profile name differs', () => {
